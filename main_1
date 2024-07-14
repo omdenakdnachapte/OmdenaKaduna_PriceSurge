@@ -1,0 +1,138 @@
+import streamlit as st
+import pandas as pd
+import plotly.express as px
+from sklearn.preprocessing import LabelEncoder
+
+# Function to load and preprocess data
+def load_and_preprocess_data(file_path):
+    df = pd.read_csv(file_path)
+    # Preprocess data (if needed)
+    return df
+
+# Function to display correlation plots
+def display_correlation_plots(df, title):
+    st.subheader(title)
+    # Calculate correlation matrix
+    corr_matrix = df.corr().abs()
+    # Get top 3 correlated pairs (excluding self-correlations)
+    top_corr = get_top_correlations(corr_matrix)
+    # Display line plots for each of the top 3 pairs
+    for _, row in top_corr.iterrows():
+        fig = px.line(df, x=row['Feature 1'], y=row['Feature 2'], title=f"{row['Feature 1']} vs {row['Feature 2']}")
+        st.plotly_chart(fig)
+
+# Function to get top n correlated pairs (excluding self-correlations)
+def get_top_correlations(corr_matrix, n=3):
+    stacked = corr_matrix.stack().reset_index().rename(columns={'level_0': 'Feature 1', 'level_1': 'Feature 2', 0: 'Correlation'})
+    top_correlations = stacked[(stacked['Feature 1'] != stacked['Feature 2'])].sort_values(by='Correlation', ascending=False)
+    return top_correlations.head(n)
+
+# Load datasets
+df_1960 = load_and_preprocess_data('1960_onwards.csv')
+df_1980 = load_and_preprocess_data('1980_onwards.csv')
+df_1960_1 = load_and_preprocess_data('1960_onwards (1).csv')
+df_real_gdp = load_and_preprocess_data('RealGDP1981_2023_processed.csv')
+
+# Filter out rows in df_real_gdp where the Time column is not numeric
+df_real_gdp_filtered = df_real_gdp[pd.to_numeric(df_real_gdp['Time'], errors='coerce').notnull()]
+
+# Convert the Time column to numeric
+df_real_gdp_filtered['Time'] = pd.to_numeric(df_real_gdp_filtered['Time'])
+
+# Streamlit app
+def main():
+    st.title("Quick View of Price Surge in Nigerian Economy")
+
+    # Sidebar for navigation and file downloads
+    st.sidebar.title("Navigation")
+    page = st.sidebar.radio("Go to", ["Introduction", "Data Exploration", "Visualizations", "Models", "Reports & Presentations"])
+
+    if page == "Introduction":
+        st.header("Introduction")
+        st.write("This app provides a quick view of price surges in the Nigerian economy using data science. It allows you to explore various economic indicators, visualize trends, and run simple models.")
+
+    elif page == "Data Exploration":
+        st.header("Data Exploration")
+        dataset = st.selectbox("Select Dataset", ["1960 Onwards", "1980 Onwards", "1960 Onwards (1)", "Real GDP"])
+        if dataset == "1960 Onwards":
+            st.write(df_1960)
+            st.download_button("Download CSV", df_1960.to_csv(), "1960_onwards.csv", "text/csv")
+        elif dataset == "1980 Onwards":
+            st.write(df_1980)
+            st.download_button("Download CSV", df_1980.to_csv(), "1980_onwards.csv", "text/csv")
+        elif dataset == "1960 Onwards (1)":
+            st.write(df_1960_1)
+            st.download_button("Download CSV", df_1960_1.to_csv(), "1960_onwards (1).csv", "text/csv")
+        else:
+            st.write(df_real_gdp)
+            st.download_button("Download CSV", df_real_gdp.to_csv(), "RealGDP1981_2023_processed.csv", "text/csv")
+
+    elif page == "Visualizations":
+        st.header("Visualizations")
+        # GDP Plots
+        st.subheader("GDP Plots")
+        fig1 = px.line(df_1960, x='Year', y=['GDP (constant LCU)', 'GDP (current LCU)'],
+                       title='GDP (Constant and Current LCU) Over Time',
+                       labels={'value': 'GDP (LCU)', 'Year': 'Year'},
+                       markers=True)
+        st.plotly_chart(fig1)
+
+        fig2 = px.bar(df_1960, x='Year', y='GDP growth (annual %)',
+                      title='GDP Growth (Annual %) Over Time',
+                      labels={'GDP growth (annual %)': 'GDP Growth (%)', 'Year': 'Year'})
+        st.plotly_chart(fig2)
+
+        fig3 = px.histogram(df_1960, x='GDPBillions of US $',
+                           title='Distribution of GDP (Billions of US $)',
+                           labels={'GDPBillions of US $': 'GDP (Billions of US $)'})
+        st.plotly_chart(fig3)
+
+        fig4 = px.line(df_real_gdp_filtered, x='Time', y=['GDP at 2010 Constant Basic Prices', 'GDP at 2010 Constant Market Prices'],
+                       title='GDP at 2010 Constant Prices Over Time',
+                       labels={'value': 'GDP', 'Time': 'Year'},
+                       markers=True)
+        st.plotly_chart(fig4)
+
+        # Additional Plots
+        st.subheader("Additional Plots")
+        fig5 = px.line(df_1960_1, x='Year', y='Petrol Price (Naira)',
+                       title='Petrol Price (Naira) Over Time',
+                       labels={'Petrol Price (Naira)': 'Petrol Price (Naira)', 'Year': 'Year'},
+                       markers=True)
+        st.plotly_chart(fig5)
+
+        fig6 = px.line(df_1960_1, x='Year', y='Consumer price index (2010 = 100)',
+                       title='Consumer Price Index (2010 = 100) Over Time',
+                       labels={'Consumer price index (2010 = 100)': 'Consumer Price Index', 'Year': 'Year'},
+                       markers=True)
+        st.plotly_chart(fig6)
+
+        fig7 = px.line(df_1980, x='Year', y=['Crop production', 'Livestock', 'Forestry', 'Fishing'],
+                       title='Agricultural Production Over Time',
+                       labels={'value': 'Production', 'Year': 'Year'},
+                       markers=True)
+        st.plotly_chart(fig7)
+
+        fig8 = px.line(df_1980, x='Year', y=['Construction Sector Naira(million)', 'Information and Communication Sector (millions in naira)', 'Real Estate (millions of naira)'],
+                       title='Sector Growth Over Time',
+                       labels={'value': 'Value (millions of Naira)', 'Year': 'Year'},
+                       markers=True)
+        st.plotly_chart(fig8)
+
+        fig9 = px.line(df_1980, x='Year', y='Lending interest rate (%)',
+                       title='Lending Interest Rate (%) Over Time',
+                       labels={'Lending interest rate (%)': 'Interest Rate (%)', 'Year': 'Year'},
+                       markers=True)
+        st.plotly_chart(fig9)
+
+        fig10 = px.line(df_1980, x='Year', y=['Manufacturing, value added (% of GDP)', 'Agriculture, forestry, and fishing, value added (% of GDP)'],
+                       title='Value Added by Sector (% of GDP) Over Time',
+                       labels={'value': 'Value Added (% of GDP)', 'Year': 'Year'},
+                       markers=True)
+        st.plotly_chart(fig10)
+
+        fig11 = px.line(df_1980, x='Year', y='Industry (including construction), value added (% of GDP)',
+                       title='Value Added by Industry (including construction) (% of GDP) Over Time',
+                       labels={'Industry (including construction), value added (% of GDP)': 'Value Added (% of GDP)', 'Year': 'Year'},
+                       markers=True)
+        st.plotly
